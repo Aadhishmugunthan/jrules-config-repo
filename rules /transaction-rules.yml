@@ -1,46 +1,147 @@
 rules:
 
-  # Rule 1: Validate Required Metadata
-  - name: "AIS - Validate Required Metadata"
-    description: "Ensure eventMetadata is not null or empty"
-    priority: 2
+  # -----------------------------------------------------
+  # Rule 1: Validate Transaction ID
+  # -----------------------------------------------------
 
-    condition: >
-      eventMetadata == null ||
-      eventMetadata.trim().isEmpty()
-
-    actions:
-      - "envelope.setIgnore(true)"
-      - "System.out.println('Ignoring event with missing metadata: ' + envelope.getEventId())"
-
-
-
-  # Rule 2: High Amount Review
-  - name: "High Amount Validation"
-    description: "Flag transactions above 5000"
+  - name: "TXN - Validate Transaction ID"
+    description: "Transaction ID must not be null"
 
     priority: 1
 
     condition: >
-      tranAmt != null &&
-      Integer.parseInt(tranAmt) > 5000
+      tranId == null ||
+      tranId.trim().isEmpty()
 
     actions:
-      - "transaction.setCurStatus('REVIEW')"
-      - "System.out.println('High amount detected')"
+      - "throw new RuntimeException('Transaction ID is required')"
 
 
 
-  # Rule 3: Invalid Currency
-  - name: "Currency Validation"
-    description: "Allow only INR or USD"
+  # -----------------------------------------------------
+  # Rule 2: Validate Currency
+  # -----------------------------------------------------
 
-    priority: 3
+  - name: "TXN - Validate Currency"
+    description: "Only INR and USD are allowed"
+
+    priority: 2
 
     condition: >
       !tranCurr.equals('INR') &&
       !tranCurr.equals('USD')
 
     actions:
-      - "transaction.setCurStatus('REJECTED')"
-      - "System.out.println('Invalid currency')"
+      - "dto.setErrCd('INVALID_CURRENCY')"
+      - "dto.setCurStatus('REJECTED')"
+
+
+
+  # -----------------------------------------------------
+  # Rule 3: High Amount Review
+  # -----------------------------------------------------
+
+  - name: "TXN - High Amount Review"
+    description: "Flag transactions above 5000"
+
+    priority: 3
+
+    condition: >
+      tranAmt != null &&
+      Integer.parseInt(tranAmt) > 5000
+
+    actions:
+      - "dto.setCurStatus('REVIEW')"
+      - "System.out.println('High value transaction detected')"
+
+
+
+  # -----------------------------------------------------
+  # Rule 4: DUAL Message Requires Clearing
+  # -----------------------------------------------------
+
+  - name: "TXN - Require Clearing for DUAL"
+    description: "DUAL message must include clearing settlement"
+
+    priority: 4
+
+    condition: >
+      msgType != null &&
+      msgType.equalsIgnoreCase('DUAL') &&
+      clearingSettlement == null
+
+    actions:
+      - "throw new RuntimeException('Clearing settlement required for DUAL message')"
+
+
+
+  # -----------------------------------------------------
+  # Rule 5: Sender and Recipient Validation
+  # -----------------------------------------------------
+
+  - name: "TXN - Sender Recipient Same"
+    description: "Sender and recipient cannot be same"
+
+    priority: 5
+
+    condition: >
+      senderRecipient != null &&
+      senderRecipient.senderName != null &&
+      senderRecipient.senderName.equals(senderRecipient.recipientName)
+
+    actions:
+      - "throw new RuntimeException('Sender and Recipient cannot be same')"
+
+
+
+  # -----------------------------------------------------
+  # Rule 6: Address Validation
+  # -----------------------------------------------------
+
+  - name: "TXN - Address Required"
+    description: "At least one address must exist"
+
+    priority: 6
+
+    condition: >
+      addresses == null ||
+      addresses.isEmpty()
+
+    actions:
+      - "throw new RuntimeException('Address is required')"
+
+
+
+  # -----------------------------------------------------
+  # Rule 7: Default Outbox Status
+  # -----------------------------------------------------
+
+  - name: "OUTBOX - Default Status"
+    description: "Set default status if missing"
+
+    priority: 7
+
+    condition: >
+      outbox.status == null
+
+    actions:
+      - "outbox.setStatus('PENDING')"
+
+
+
+  # -----------------------------------------------------
+  # Rule 8: Kafka Retry Rule
+  # -----------------------------------------------------
+
+  - name: "OUTBOX - Retry Failed"
+    description: "Retry failed messages"
+
+    priority: 8
+
+    condition: >
+      outbox.status != null &&
+      outbox.status.equals('FAILED')
+
+    actions:
+      - "outbox.setStatus('PENDING')"
+      - "System.out.println('Retrying failed message')"
