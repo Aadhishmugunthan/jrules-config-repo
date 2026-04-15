@@ -1,1 +1,7 @@
-
+rules:
+  - name: "AIS - Validate Required Metadata"
+    description: "Ensure eventMetadata is not null"
+    priority: 1
+    condition: "tranAmt == null"
+    actions:
+      - "ignore"
