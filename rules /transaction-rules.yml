@@ -1,1 +1,46 @@
+rules:
 
+  # Rule 1: Validate Required Metadata
+  - name: "AIS - Validate Required Metadata"
+    description: "Ensure eventMetadata is not null or empty"
+    priority: 2
+
+    condition: >
+      eventMetadata == null ||
+      eventMetadata.trim().isEmpty()
+
+    actions:
+      - "envelope.setIgnore(true)"
+      - "System.out.println('Ignoring event with missing metadata: ' + envelope.getEventId())"
+
+
+
+  # Rule 2: High Amount Review
+  - name: "High Amount Validation"
+    description: "Flag transactions above 5000"
+
+    priority: 1
+
+    condition: >
+      tranAmt != null &&
+      Integer.parseInt(tranAmt) > 5000
+
+    actions:
+      - "transaction.setCurStatus('REVIEW')"
+      - "System.out.println('High amount detected')"
+
+
+
+  # Rule 3: Invalid Currency
+  - name: "Currency Validation"
+    description: "Allow only INR or USD"
+
+    priority: 3
+
+    condition: >
+      !tranCurr.equals('INR') &&
+      !tranCurr.equals('USD')
+
+    actions:
+      - "transaction.setCurStatus('REJECTED')"
+      - "System.out.println('Invalid currency')"
