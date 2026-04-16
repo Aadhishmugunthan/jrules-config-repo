@@ -145,3 +145,21 @@ rules:
     actions:
       - "outbox.setStatus('PENDING')"
       - "System.out.println('Retrying failed message')"
+
+
+ # -----------------------------------------------------
+ # Rule 9: Clearing Must Have Settlement
+ # -----------------------------------------------------
+
+  - name: "CLEARING - Settlement Required"
+    description: "Clearing transaction must include settlement"
+
+    priority: 9
+
+    condition: >
+      tranType != null &&
+      tranType.equalsIgnoreCase('CLEARING') &&
+      clearingSettlement == null
+
+    actions:
+      - "throw new RuntimeException('Clearing settlement is required for CLEARING transaction')"
